@@ -1,0 +1,62 @@
+# Python cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+env/
+.venv/
+venv/
+ENV/
+.env
+
+# Testing and coverage
+.tox/
+.coverage
+.coverage.*
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+.pytest_cache/
+.hypothesis/
+tests/
+
+# IDE and development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Project specific - DO NOT INCLUDE SENSITIVE DATA
+auth/token.json
+auth/credentials.json
+data/users.json
+data/quiz_history.json
+data/quizzes.json
+data/user_*_quizzes.json
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+
+# Documentation and examples
+README.md
+.env.example
+LICENSE
+
+# CI/CD and build artifacts
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
