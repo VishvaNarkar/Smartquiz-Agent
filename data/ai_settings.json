@@ -1,0 +1,6 @@
+{
+  "ai_source": "openai",
+  "ai_model": "llama-3.1-8b-instant",
+  "ai_api_url": "https://api.groq.com/openai/v1/chat/completions",
+  "ai_api_key": ""
+}

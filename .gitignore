@@ -113,6 +113,17 @@ data/quizzes.json
 data/users.json
 data/quiz_history.json
 data/user_*_quizzes.json
+data/username_aliases.json
+data/.auth_secret
+data/*.bak
+*.sqlite3
+
+# Security / local secrets
+.env.local
+.env.*.local
+secrets.json
+*.pem
+*.key
 
 # IDE
 .vscode/

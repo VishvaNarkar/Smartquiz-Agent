@@ -75,7 +75,7 @@ def create_form(mcqs, title=None):
                                 "choiceQuestion": {
                                     "type": "RADIO",
                                     "options": [{"value": opt} for opt in q["options"]],
-                                    "shuffle": True
+                                    "shuffle": False
                                 }
                             }
                         }

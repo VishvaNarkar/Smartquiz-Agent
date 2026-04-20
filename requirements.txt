@@ -6,8 +6,15 @@ python-dotenv
 requests
 bcrypt
 
+# FastAPI for REST API server
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+
 # Development dependencies
 pytest
 pytest-cov
+httpx
 flake8
 black

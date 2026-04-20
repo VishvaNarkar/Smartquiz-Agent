@@ -1,82 +1,55 @@
-# 🔐 Credentials Recovery Guide
+# 🔐 Google Credentials Recovery Guide
 
-Unfortunately, the `credentials.json` and `token.json` files were permanently deleted during the GitHub cleanup process. These files cannot be recovered from disk, but you can regenerate them easily.
+Use this guide if `auth/credentials.json` is missing or invalid.
 
-## 📋 Recovering credentials.json
+## 🎯 What this file is for
 
-### Step 1: Go to Google Cloud Console
-1. Visit [Google Cloud Console](https://console.cloud.google.com/)
-2. Select your project (or create a new one if needed)
+`credentials.json` contains Google OAuth client configuration used for Google Forms export.
 
-### Step 2: Create OAuth 2.0 Credentials
-1. Navigate to **Credentials** (left sidebar)
-2. Click **+ Create Credentials** → **OAuth client ID**
-3. Application type: **Desktop application**
-4. Click **Create**
-5. Download the JSON file
+## 1️⃣ Regenerate in Google Cloud Console
 
-### Step 3: Place the File
-1. Rename the downloaded file to `credentials.json`
-2. Move it to `auth/credentials.json` in your project directory
+1. Open Google Cloud Console.
+2. Select your project.
+3. Enable APIs:
+   - Google Forms API
+   - Google Drive API
+4. Go to **Credentials**.
+5. Create OAuth Client ID.
+6. Choose **Desktop app**.
+7. Download JSON file.
 
-```bash
-# Example on Windows:
-Move-Item "Downloads\client_secrets_*.json" "auth\credentials.json"
+## 2️⃣ Upload in SmartQuiz
 
-# On macOS/Linux:
-mv ~/Downloads/client_secrets_*.json auth/credentials.json
-```
+1. Login to SmartQuiz.
+2. Open **Settings**.
+3. Use **Google Forms Credentials** upload.
+4. Select the downloaded `.json` file.
 
-## 🔄 Recovering token.json
+## ✅ Server-side validation checks
 
-The `token.json` file is **automatically generated** on first use. You don't need to create it manually.
+Upload endpoint validates:
 
-### How to Generate It:
-1. Run the SmartQuiz application:
-   ```bash
-   streamlit run ui/streamlit_app.py
-   ```
-2. Try to create and export a Google Form
-3. A browser window will open asking for Google authentication
-4. Authorize the app
-5. The `token.json` file will be automatically created in `auth/`
+- File extension is `.json`
+- MIME/content type is JSON compatible
+- File size <= 1MB
+- JSON includes `installed` or `web`
+- Required fields exist:
+  - `client_id`
+  - `client_secret`
+  - `auth_uri`
+  - `token_uri`
 
-The file structure should look like:
-```
-auth/
-├── auth.py
-├── __init__.py
-├── credentials.json    ← Downloaded from Google Cloud Console
-└── token.json          ← Auto-generated after first OAuth flow
-```
+## 3️⃣ token.json behavior
 
-## ⚠️ Important Security Notes
+`auth/token.json` is generated automatically after successful OAuth flow during first Google export action.
 
-- **Never commit these files to GitHub** (they're protected by `.gitignore`)
-- Keep `credentials.json` and `token.json` private and secure
-- If credentials are compromised, regenerate them in Google Cloud Console
-- Use environment variables in production instead of local files
+## 🛡️ Security reminders
 
-## ✅ Verification
+- Never commit credentials files to Git.
+- Rotate credentials immediately if exposed.
+- Keep OAuth client restricted to expected usage.
 
-After recovering both files, verify the setup:
+## 🧪 Quick verification
 
-```bash
-# Check files exist
-ls -la auth/
-# Should show:
-# total XX
-# -rw-r--r--  1 user  group  XXX Nov XX XX:XX auth.py
-# -rw-r--r--  1 user  group  XXX Nov XX XX:XX __init__.py
-# -rw-r--r--  1 user  group  XXX Nov XX XX:XX credentials.json
-# -rw-r--r--  1 user  group  XXX Nov XX XX:XX token.json
-```
-
-## 🚀 Next Steps
-
-Once files are recovered, you can:
-1. Test the application locally
-2. Deploy to Docker/cloud
-3. Use the adaptive quiz and Google Forms export features
-
-For more help, check the [README.md](../README.md) troubleshooting section.
+After upload, try exporting a quiz to Google Forms.
+If export succeeds, credentials are valid.

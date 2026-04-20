@@ -9,13 +9,23 @@ class AdaptiveAIEngine:
         self.user_manager = user_manager
         self.ai_service = ai_service
 
-    def generate_adaptive_quiz(self, username: str, num_questions: int = 5) -> tuple:
+    def generate_adaptive_quiz(
+        self,
+        username: str,
+        num_questions: int = 5,
+        model: str | None = None,
+        api_url: str | None = None,
+        api_key: str | None = None,
+    ) -> tuple:
         """
         Generate an adaptive quiz based on user's weak topics.
 
         Args:
             username (str): The username.
             num_questions (int): Number of questions to generate.
+            model (str, optional): Local model name to use.
+            api_url (str, optional): Custom API endpoint URL.
+            api_key (str, optional): Authorization token for custom APIs.
 
         Returns:
             tuple: (list of MCQ dictionaries, topic used)
@@ -30,12 +40,26 @@ class AdaptiveAIEngine:
                     username,
                     last_topic,
                 )
-                mcqs = self.ai_service.generate_quiz(last_topic, "Medium", num_questions)
+                mcqs = self.ai_service.generate_quiz(
+                    last_topic,
+                    "Medium",
+                    num_questions,
+                    model=model,
+                    api_url=api_url,
+                    api_key=api_key,
+                )
                 return mcqs, last_topic
 
             # If no weak topics and no quiz history, generate a general quiz
             logger.info("No weak topics found for %s, generating general quiz", username)
-            mcqs = self.ai_service.generate_quiz("Mixed Subjects", "Medium", num_questions)
+            mcqs = self.ai_service.generate_quiz(
+                "Mixed Subjects",
+                "Medium",
+                num_questions,
+                model=model,
+                api_url=api_url,
+                api_key=api_key,
+            )
             return mcqs, "Mixed Subjects"
 
         # Prioritize the weakest topic (lowest average score)
@@ -60,7 +84,14 @@ class AdaptiveAIEngine:
         else:
             difficulty = "Hard"
 
-        mcqs = self.ai_service.generate_quiz(target_topic, difficulty, num_questions)
+        mcqs = self.ai_service.generate_quiz(
+            target_topic,
+            difficulty,
+            num_questions,
+            model=model,
+            api_url=api_url,
+            api_key=api_key,
+        )
         return mcqs, target_topic
 
     def analyze_performance(self, username: str, quiz_results: Dict) -> Dict[str, Any]:

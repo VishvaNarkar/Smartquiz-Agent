@@ -7,10 +7,11 @@ from datetime import datetime
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import streamlit as st
-from config import APP_TITLE, DEFAULT_NUM_QUESTIONS, MAX_NUM_QUESTIONS
+from config import APP_TITLE, DEFAULT_NUM_QUESTIONS, MAX_NUM_QUESTIONS, OLLAMA_MODEL
 from core.validator import validate_mcqs
 from services.api import SmartQuizAPI
 from services.scoring import evaluate
+from services.settings_manager import SettingsManager
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +19,15 @@ logger = logging.getLogger(__name__)
 
 # Initialize service API
 api = SmartQuizAPI()
+
+# Load saved AI settings or use defaults
+default_ai_settings = {
+    "ai_source": "Local Ollama",
+    "ai_model": OLLAMA_MODEL,
+    "ai_api_url": "",
+    "ai_api_key": "",
+}
+saved_settings = SettingsManager.get_ai_settings_with_defaults(default_ai_settings)
 
 # Session state initialization
 if "user" not in st.session_state:
@@ -42,6 +52,14 @@ if "clear_login_fields" not in st.session_state:
     st.session_state.clear_login_fields = False
 if "clear_register_fields" not in st.session_state:
     st.session_state.clear_register_fields = False
+if "ai_source" not in st.session_state:
+    st.session_state.ai_source = saved_settings["ai_source"]
+if "ai_model" not in st.session_state:
+    st.session_state.ai_model = saved_settings["ai_model"]
+if "ai_api_url" not in st.session_state:
+    st.session_state.ai_api_url = saved_settings["ai_api_url"]
+if "ai_api_key" not in st.session_state:
+    st.session_state.ai_api_key = saved_settings["ai_api_key"]
 
 def login_page():
     if st.session_state.clear_login_fields:
@@ -123,6 +141,91 @@ def dashboard_page():
             st.session_state.page = "custom_quiz"
             st.rerun()
 
+    # Google API Credentials Upload
+    st.header("🔐 Google API Setup")
+    st.write("Upload your `credentials.json` file from Google Cloud Console to enable Google Forms export.")
+    uploaded_file = st.file_uploader("Choose credentials.json", type=['json'], key="credentials_upload")
+
+    if uploaded_file is not None:
+        try:
+            # Save to auth/credentials.json
+            credentials_path = os.path.join(os.path.dirname(__file__), '..', 'auth', 'credentials.json')
+            os.makedirs(os.path.dirname(credentials_path), exist_ok=True)
+
+            with open(credentials_path, 'wb') as f:
+                f.write(uploaded_file.getbuffer())
+
+            st.success("✅ Credentials uploaded successfully! You can now export quizzes to Google Forms.")
+            logger.info(f"User {st.session_state.user} uploaded credentials.json")
+
+        except Exception as e:
+            st.error(f"❌ Failed to upload credentials: {str(e)}")
+            logger.error(f"Failed to upload credentials for user {st.session_state.user}: {e}")
+
+    # AI model and endpoint settings
+    st.header("🤖 AI Model Settings")
+    st.radio(
+        "Choose your AI source:",
+        ["Local Ollama", "External API"],
+        index=0 if st.session_state.ai_source == "Local Ollama" else 1,
+        key="ai_source"
+    )
+
+    if st.session_state.ai_source == "Local Ollama":
+        st.text_input(
+            "Local model name",
+            value=st.session_state.ai_model,
+            key="ai_model",
+            help="Enter your local Ollama model name, for example llama3.1:8b.",
+        )
+        st.write("Using your local Ollama server endpoint configured in `.env`.")
+        st.info(
+            "For best performance with local Ollama, choose a model that balances speed and quality: "
+            "smaller models for fast quizzes, larger models for deeper question quality."
+        )
+    else:
+        st.text_input(
+            "External API endpoint URL",
+            value=st.session_state.ai_api_url,
+            key="ai_api_url",
+            help="Provide the full URL for your external AI model endpoint.",
+        )
+        st.text_input(
+            "API key / Bearer token (optional)",
+            type="password",
+            value=st.session_state.ai_api_key,
+            key="ai_api_key",
+            help="Optional authorization token for external API access.",
+        )
+        st.write("Custom endpoints should accept the same model/prompt JSON payload structure.")
+        st.info(
+            "For external APIs, use a higher-capacity model for the best question quality, "
+            "or a lower-cost model for faster responses."
+        )
+
+    if st.session_state.ai_source == "External API" and not st.session_state.ai_api_url.strip():
+        st.warning("Please enter your external API endpoint URL to use the external AI source.")
+
+    # Save AI settings button
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.write("")
+    with col2:
+        if st.button("💾 Save Changes", use_container_width=True):
+            if st.session_state.ai_source == "External API" and not st.session_state.ai_api_url.strip():
+                st.error("Cannot save: External API requires an endpoint URL.")
+            else:
+                success = SettingsManager.save_ai_settings(
+                    st.session_state.ai_source,
+                    st.session_state.ai_model,
+                    st.session_state.ai_api_url,
+                    st.session_state.ai_api_key,
+                )
+                if success:
+                    st.success("✅ AI settings saved successfully!")
+                else:
+                    st.error("❌ Failed to save settings.")
+
     # Recent quizzes
     user_quizzes = api.get_recent_quizzes(st.session_state.user)
     if user_quizzes:
@@ -157,7 +260,12 @@ def adaptive_quiz_page():
         with st.spinner("Generating personalized quiz..."):
             try:
                 progress.progress(25)
-                mcqs, topic = api.generate_adaptive_quiz(st.session_state.user)
+                mcqs, topic = api.generate_adaptive_quiz(
+                    st.session_state.user,
+                    model=st.session_state.ai_model if st.session_state.ai_source == "Local Ollama" else None,
+                    api_url=st.session_state.ai_api_url if st.session_state.ai_source == "External API" else None,
+                    api_key=st.session_state.ai_api_key if st.session_state.ai_source == "External API" else None,
+                )
                 progress.progress(75)
                 mcqs = validate_mcqs(mcqs)
                 progress.progress(100)
@@ -191,12 +299,23 @@ def custom_quiz_page():
     if submitted:
         if not topic.strip():
             st.error("Please enter a valid topic.")
+        elif st.session_state.ai_source == "External API" and not st.session_state.ai_api_url.strip():
+            st.error("Please provide an external API endpoint URL before generating a quiz.")
+            mcqs = []
         else:
             progress = st.progress(0)
             with st.spinner("⏳ Generating quiz... (This may take a moment while Ollama responds)"):
                 try:
                     progress.progress(25)
-                    mcqs = api.generate_custom_quiz(st.session_state.user, topic, difficulty, num)
+                    mcqs = api.generate_custom_quiz(
+                        st.session_state.user,
+                        topic,
+                        difficulty,
+                        num,
+                        model=st.session_state.ai_model if st.session_state.ai_source == "Local Ollama" else None,
+                        api_url=st.session_state.ai_api_url if st.session_state.ai_source == "External API" else None,
+                        api_key=st.session_state.ai_api_key if st.session_state.ai_source == "External API" else None,
+                    )
                     progress.progress(75)
                     mcqs = validate_mcqs(mcqs)
                     progress.progress(100)

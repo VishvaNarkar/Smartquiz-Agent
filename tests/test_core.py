@@ -1,4 +1,5 @@
 import pytest
+import json
 from core.validator import validate_mcqs
 from services.api import SmartQuizAPI
 from services.scoring import evaluate
@@ -84,10 +85,57 @@ def test_user_registration_login_and_analytics(tmp_path):
 
     analytics = user_manager.get_user_analytics("Alice")
     assert analytics["total_quizzes"] == 1
-    assert analytics["average_score"] == 2.0
+    assert analytics["average_score"] == 100.0
     assert analytics["recent_quizzes"]
     assert analytics["recent_quizzes"][0]["topic"] == "Math"
     assert analytics["weak_topics"] == []
+
+
+def test_legacy_username_migration_and_alias_lookup(tmp_path):
+    users_file = tmp_path / "users.json"
+    history_file = tmp_path / "quiz_history.json"
+    legacy_quiz_file = tmp_path / "user_Alice Smith_quizzes.json"
+
+    users_file.write_text(
+        json.dumps(
+            {
+                "Alice Smith": {
+                    "password": "$2b$12$N2OnXQDzM3aMZxxg4B3T5eq7Q.JkSQ0E2fM2xR9gXR1W1sm.fY5m6",
+                    "email": "",
+                    "created_at": "2026-04-01T00:00:00",
+                    "weak_topics": {},
+                    "total_quizzes": 1,
+                    "average_score": 2.0,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    history_file.write_text(
+        json.dumps(
+            {
+                "Alice Smith": [
+                    {
+                        "timestamp": "2026-04-01T00:00:00",
+                        "topic": "Math",
+                        "difficulty": "Easy",
+                        "num_questions": 2,
+                        "score": 2,
+                        "questions": ["q1", "q2"],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    legacy_quiz_file.write_text("[]", encoding="utf-8")
+
+    user_manager = UserManager(data_dir=str(tmp_path))
+
+    assert "Alice_Smith" in user_manager.users
+    assert user_manager.resolve_username("Alice Smith") == "Alice_Smith"
+    assert user_manager.users["Alice_Smith"]["average_score"] == 100.0
+    assert (tmp_path / "user_Alice_Smith_quizzes.json").exists()
 
 
 def test_api_custom_and_adaptive_quiz_generation(monkeypatch, tmp_path):
@@ -106,14 +154,14 @@ def test_api_custom_and_adaptive_quiz_generation(monkeypatch, tmp_path):
     ]
 
     saved_quizzes = []
-    monkeypatch.setattr(api.ai_service, "generate_quiz", lambda topic, difficulty, num: fake_mcqs)
+    monkeypatch.setattr(api.ai_service, "generate_quiz", lambda topic, difficulty, num, **kwargs: fake_mcqs)
     monkeypatch.setattr("services.api.save_quiz", lambda quiz_data, username: saved_quizzes.append((quiz_data, username)))
 
     generated = api.generate_custom_quiz("Bob", "Science", "Easy", 1)
     assert generated == validate_mcqs(fake_mcqs)
     assert saved_quizzes and saved_quizzes[-1][1] == "Bob"
 
-    monkeypatch.setattr(api.adaptive_engine, "generate_adaptive_quiz", lambda username, num: (fake_mcqs, "Science"))
+    monkeypatch.setattr(api.adaptive_engine, "generate_adaptive_quiz", lambda username, num, **kwargs: (fake_mcqs, "Science"))
     adaptive_mcqs, topic = api.generate_adaptive_quiz("Bob", 1)
     assert adaptive_mcqs == validate_mcqs(fake_mcqs)
     assert topic == "Science"
@@ -140,7 +188,7 @@ def test_adaptive_review_fallback_uses_last_topic(monkeypatch, tmp_path):
     fake_mcqs = [
         {"question": "Firewall review", "options": ["A", "B", "C", "D"], "answer": "A"}
     ]
-    monkeypatch.setattr(api.ai_service, "generate_quiz", lambda topic, difficulty, num: fake_mcqs)
+    monkeypatch.setattr(api.ai_service, "generate_quiz", lambda topic, difficulty, num, **kwargs: fake_mcqs)
 
     adaptive_mcqs, topic = api.generate_adaptive_quiz("Carol", 1)
     assert adaptive_mcqs == validate_mcqs(fake_mcqs)

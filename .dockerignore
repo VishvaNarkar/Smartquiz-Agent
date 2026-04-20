@@ -28,6 +28,10 @@ coverage.xml
 .hypothesis/
 tests/
 
+# Frontend build context is not needed in backend API image.
+frontend/node_modules/
+frontend/.next/
+
 # IDE and development files
 .vscode/
 .idea/
@@ -40,20 +44,25 @@ Thumbs.db
 # Project specific - DO NOT INCLUDE SENSITIVE DATA
 auth/token.json
 auth/credentials.json
+data/.auth_secret
+data/username_aliases.json
 data/users.json
 data/quiz_history.json
 data/quizzes.json
 data/user_*_quizzes.json
 
+# Local environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.json
+
 # Git and version control
 .git/
 .gitignore
 .gitattributes
-
-# Documentation and examples
-README.md
-.env.example
-LICENSE
 
 # CI/CD and build artifacts
 .github/

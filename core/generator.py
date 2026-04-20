@@ -11,20 +11,35 @@ from core.formatter import clean_json_output
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def generate_mcqs(topic: str, difficulty: str, num_questions: int = 5) -> List[Dict[str, Any]]:
+
+def _is_chat_completions_url(url: str) -> bool:
+    normalized = (url or "").lower()
+    return "/chat/completions" in normalized
+
+def generate_mcqs(
+    topic: str,
+    difficulty: str,
+    num_questions: int = 5,
+    model: str | None = None,
+    api_url: str | None = None,
+    api_key: str | None = None,
+) -> List[Dict[str, Any]]:
     """
-    Generate multiple-choice questions using Ollama API.
+    Generate multiple-choice questions using Ollama or OpenAI-compatible chat APIs.
 
     Args:
         topic (str): The topic for the questions.
         difficulty (str): Difficulty level (Easy, Medium, Hard).
         num_questions (int): Number of questions to generate.
+        model (str, optional): Model name to use.
+        api_url (str, optional): Custom API endpoint URL.
+        api_key (str, optional): Authorization token for custom APIs.
 
     Returns:
         list: List of validated MCQ dictionaries.
 
     Raises:
-        RuntimeError: When Ollama returns an error or output is invalid.
+        RuntimeError: When the AI API returns an error or output is invalid.
     """
     if not topic.strip():
         raise ValueError("Topic cannot be empty")
@@ -58,11 +73,32 @@ def generate_mcqs(topic: str, difficulty: str, num_questions: int = 5) -> List[D
     Ensure the JSON is valid and each question has exactly 4 options.
     """
 
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False,
-    }
+    model_name = model or OLLAMA_MODEL
+    request_url = api_url or OLLAMA_URL
+
+    # Support both local Ollama prompt API and OpenAI-compatible chat-completions APIs.
+    if _is_chat_completions_url(request_url):
+        payload = {
+            "model": model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            "temperature": 0.3,
+            "stream": False,
+        }
+    else:
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "stream": False,
+        }
+
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
 
     max_attempts = 2
     for attempt in range(1, max_attempts + 1):
@@ -75,11 +111,11 @@ def generate_mcqs(topic: str, difficulty: str, num_questions: int = 5) -> List[D
                 attempt,
                 max_attempts,
             )
-            response = requests.post(OLLAMA_URL, json=payload, timeout=600)
+            response = requests.post(request_url, json=payload, headers=headers, timeout=600)
 
             if response.status_code != 200:
                 error_text = response.text.strip()
-                message = f"Ollama API Error: {response.status_code} - {error_text}"
+                message = f"AI API Error: {response.status_code} - {error_text}"
                 logger.error(message)
                 if attempt < max_attempts and response.status_code >= 500:
                     time.sleep(2)
@@ -88,7 +124,14 @@ def generate_mcqs(topic: str, difficulty: str, num_questions: int = 5) -> List[D
 
             try:
                 data = response.json()
-                output = data.get("response") or data.get("output") or response.text
+                if _is_chat_completions_url(request_url):
+                    # Cloud providers typically return choices[].message.content.
+                    choices = data.get("choices") or []
+                    first_choice = choices[0] if choices else {}
+                    message_obj = first_choice.get("message") or {}
+                    output = message_obj.get("content") or data.get("output_text") or response.text
+                else:
+                    output = data.get("response") or data.get("output") or response.text
             except json.JSONDecodeError:
                 output = response.text
 
@@ -100,13 +143,13 @@ def generate_mcqs(topic: str, difficulty: str, num_questions: int = 5) -> List[D
 
             if not mcqs:
                 logger.warning("No valid MCQs generated. Raw output: %s", output[:500])
-                raise RuntimeError("Ollama returned invalid MCQ output")
+                raise RuntimeError("AI provider returned invalid MCQ output")
 
             logger.info("Successfully generated %s MCQs", len(mcqs))
             return mcqs
 
         except requests.exceptions.RequestException as exc:
-            message = f"Network error while calling Ollama: {exc}"
+            message = f"Network error while calling AI provider: {exc}"
             logger.error(message)
             if attempt < max_attempts:
                 time.sleep(2)
