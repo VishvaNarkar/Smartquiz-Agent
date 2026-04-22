@@ -25,6 +25,10 @@ wheels/
 *.egg
 MANIFEST
 
+# Keep frontend source lib folder tracked (API client, shared utils).
+!frontend/src/lib/
+!frontend/src/lib/**
+
 # PyInstaller
 *.manifest
 *.spec
