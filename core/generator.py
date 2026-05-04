@@ -16,6 +16,76 @@ def _is_chat_completions_url(url: str) -> bool:
     normalized = (url or "").lower()
     return "/chat/completions" in normalized
 
+
+def _clean_generation_source(source: str, max_chars: int = 12000) -> str:
+        cleaned = (source or "").strip()
+        if len(cleaned) > max_chars:
+                cleaned = cleaned[:max_chars].rstrip()
+        return cleaned.replace("{", "").replace("}", "").replace("\n", " ")
+
+
+def _build_prompt(
+        topic: str,
+        difficulty: str,
+        num_questions: int,
+        source_text: str | None = None,
+        source_label: str | None = None,
+) -> str:
+        focus = topic.strip()
+        if source_text:
+                source_intro = source_label or "source material"
+                return f"""
+        You are an expert exam creator.
+
+        Rules:
+        - Strict JSON only
+        - No explanation
+        - No extra text
+        - Each question must be unique
+        - Answer MUST match one option
+
+        Generate {num_questions} {difficulty} level multiple-choice questions based on the following {source_intro}.
+        If a topic is provided, keep the questions aligned with it as well: "{focus}".
+
+        Source material:
+        {source_text}
+
+        Strict JSON format:
+        [
+            {{
+                "question": "...",
+                "options": ["A", "B", "C", "D"],
+                "answer": "correct option text"
+            }}
+        ]
+
+        Ensure the JSON is valid and each question has exactly 4 options.
+        """
+
+        return f"""
+        You are an expert exam creator.
+
+        Rules:
+        - Strict JSON only
+        - No explanation
+        - No extra text
+        - Each question must be unique
+        - Answer MUST match one option
+
+        Generate {num_questions} {difficulty} level multiple-choice questions on "{focus}".
+
+        Strict JSON format:
+        [
+            {{
+                "question": "...",
+                "options": ["A", "B", "C", "D"],
+                "answer": "correct option text"
+            }}
+        ]
+
+        Ensure the JSON is valid and each question has exactly 4 options.
+        """
+
 def generate_mcqs(
     topic: str,
     difficulty: str,
@@ -23,6 +93,8 @@ def generate_mcqs(
     model: str | None = None,
     api_url: str | None = None,
     api_key: str | None = None,
+    source_text: str | None = None,
+    source_label: str | None = None,
 ) -> List[Dict[str, Any]]:
     """
     Generate multiple-choice questions using Ollama or OpenAI-compatible chat APIs.
@@ -48,30 +120,15 @@ def generate_mcqs(
     if len(topic) > 100:
         raise ValueError("Topic too long")
     topic = topic.replace("{", "").replace("}", "").replace("\n", " ")
+    cleaned_source = _clean_generation_source(source_text) if source_text else None
 
-    prompt = f"""
-    You are an expert exam creator.
-
-    Rules:
-    - Strict JSON only
-    - No explanation
-    - No extra text
-    - Each question must be unique
-    - Answer MUST match one option
-
-    Generate {num_questions} {difficulty} level multiple-choice questions on "{topic}".
-
-    Strict JSON format:
-    [
-      {{
-        "question": "...",
-        "options": ["A", "B", "C", "D"],
-        "answer": "correct option text"
-      }}
-    ]
-
-    Ensure the JSON is valid and each question has exactly 4 options.
-    """
+    prompt = _build_prompt(
+        topic,
+        difficulty,
+        num_questions,
+        source_text=cleaned_source,
+        source_label=source_label,
+    )
 
     model_name = model or OLLAMA_MODEL
     request_url = api_url or OLLAMA_URL

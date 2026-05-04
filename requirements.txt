@@ -5,6 +5,9 @@ google-auth-oauthlib
 python-dotenv
 requests
 bcrypt
+pypdf
+python-docx
+python-pptx
 
 # FastAPI for REST API server
 fastapi

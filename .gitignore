@@ -122,6 +122,14 @@ data/.auth_secret
 data/*.bak
 *.sqlite3
 
+# Frontend build artifacts
+frontend/node_modules/
+frontend/.next/
+frontend/.turbo/
+frontend/out/
+frontend/.vercel/
+frontend/.cache/
+
 # Security / local secrets
 .env.local
 .env.*.local

@@ -102,3 +102,28 @@ def test_refresh_requires_token_and_credentials_upload_validation(monkeypatch):
         files={"file": ("credentials.json", b"not-json", "application/json")},
     )
     assert bad_upload.status_code == 400
+
+
+def test_document_quiz_endpoint_validation(monkeypatch):
+    _reset_rate_limits()
+
+    monkeypatch.setattr(api_server.api, "authenticate_user", lambda username, password: True)
+    monkeypatch.setattr(api_server.api, "resolve_username", lambda username: username.strip())
+
+    client = TestClient(api_server.app)
+
+    login_response = client.post(
+        "/auth/login",
+        json={"username": "DocUser", "password": "Password123"},
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    bad_extension = client.post(
+        "/quiz/document",
+        headers=headers,
+        data={"username": "DocUser", "difficulty": "Medium", "num_questions": "5"},
+        files={"file": ("notes.txt", b"hello", "text/plain")},
+    )
+    assert bad_extension.status_code == 400

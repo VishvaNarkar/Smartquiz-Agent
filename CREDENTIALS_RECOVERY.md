@@ -22,15 +22,17 @@ Use this guide if `auth/credentials.json` is missing or invalid.
 
 1. Login to SmartQuiz.
 2. Open **Settings**.
-3. Use **Google Forms Credentials** upload.
+3. Use **Google Forms Credentials** upload on the dashboard settings page.
 4. Select the downloaded `.json` file.
+
+The authenticated upload endpoint is `POST /credentials/upload`, and it writes the validated file to `auth/credentials.json`.
 
 ## ✅ Server-side validation checks
 
 Upload endpoint validates:
 
 - File extension is `.json`
-- MIME/content type is JSON compatible
+- MIME/content type is JSON compatible when provided
 - File size <= 1MB
 - JSON includes `installed` or `web`
 - Required fields exist:

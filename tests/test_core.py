@@ -4,6 +4,7 @@ from core.validator import validate_mcqs
 from services.api import SmartQuizAPI
 from services.scoring import evaluate
 from services.user_manager import UserManager
+from services.document_processor import build_document_topic, extract_document_text
 
 def test_validate_mcqs():
     # Valid MCQs
@@ -166,6 +167,74 @@ def test_api_custom_and_adaptive_quiz_generation(monkeypatch, tmp_path):
     assert adaptive_mcqs == validate_mcqs(fake_mcqs)
     assert topic == "Science"
     assert saved_quizzes[-1][1] == "Bob"
+
+
+def test_document_quiz_generation_uses_uploaded_text(monkeypatch, tmp_path):
+    api = SmartQuizAPI()
+    api.user_manager = UserManager(data_dir=str(tmp_path))
+
+    assert api.register_user("Dana", "SecurePass123", "dana@example.com")
+
+    fake_mcqs = [
+        {
+            "question": "What is the main idea?",
+            "options": ["A", "B", "C", "D"],
+            "answer": "A"
+        }
+    ]
+
+    captured = {}
+
+    def fake_generate_quiz(topic, difficulty, num, **kwargs):
+        captured["topic"] = topic
+        captured["difficulty"] = difficulty
+        captured["num"] = num
+        captured["source_text"] = kwargs.get("source_text")
+        captured["source_label"] = kwargs.get("source_label")
+        return fake_mcqs
+
+    monkeypatch.setattr(api.ai_service, "generate_quiz", fake_generate_quiz)
+    monkeypatch.setattr("services.api.save_quiz", lambda quiz_data, username: None)
+
+    mcqs, topic, quiz_id = api.generate_document_quiz_with_id(
+        "Dana",
+        "lesson-notes.pdf",
+        "This is the extracted document text.",
+        "Medium",
+        3,
+    )
+
+    assert mcqs == validate_mcqs(fake_mcqs)
+    assert topic == "lesson notes"
+    assert quiz_id
+    assert captured["source_text"] == "This is the extracted document text."
+    assert captured["source_label"] == "lesson-notes.pdf"
+
+
+def test_document_topic_and_extraction_helpers():
+    assert build_document_topic("chapter-one.docx") == "chapter one"
+
+    with pytest.raises(ValueError):
+        extract_document_text("notes.txt", b"plain text")
+
+
+def test_save_quiz_result_initializes_missing_history_bucket(tmp_path):
+    user_manager = UserManager(data_dir=str(tmp_path))
+    assert user_manager.register_user("Eve", "Password123", "eve@example.com")
+
+    # Simulate a partially migrated data file where the user exists but history was not created.
+    user_manager.quiz_history.pop("Eve", None)
+
+    quiz_data = {
+        "topic": "Math",
+        "difficulty": "Easy",
+        "questions": [{"question": "Q1", "options": ["A", "B", "C", "D"], "answer": "A"}],
+    }
+
+    user_manager.save_quiz_result("Eve", quiz_data, 1)
+
+    assert user_manager.quiz_history["Eve"]
+    assert user_manager.quiz_history["Eve"][0]["topic"] == "Math"
 
 
 def test_adaptive_review_fallback_uses_last_topic(monkeypatch, tmp_path):

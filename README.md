@@ -1,11 +1,11 @@
 # 🧠 SmartQuiz Agent
 
 An AI-powered adaptive quiz platform with a secure FastAPI backend and a modern Next.js frontend.
-Build custom or adaptive quizzes, track progress, review detailed results, and export quizzes to Google Forms.
+Build custom or adaptive quizzes, generate quizzes from uploaded documents, track progress, review detailed results, and export quizzes to Google Forms.
 
 ## ✨ Highlights
 
-- 🤖 **AI Quiz Generation**: Generate MCQs with local Ollama or supported cloud endpoints.
+- 🤖 **AI Quiz Generation**: Generate MCQs with local Ollama, supported cloud endpoints, or uploaded documents.
 - 👤 **Secure Auth Flow**: Login/registration with bcrypt hashing and bearer-token protected APIs.
 - 🔄 **Session Safety**: Token refresh endpoint and friendly frontend auto-redirect on expiry.
 - 🧭 **Adaptive Learning**: Target weak topics automatically based on previous performance.
@@ -39,7 +39,14 @@ Build custom or adaptive quizzes, track progress, review detailed results, and e
 - Node.js 18+
 - Optional for local model: Ollama
 
-### 1) Install dependencies
+## 1️⃣ Clone and Enter Project
+
+```bash
+git clone https://github.com/VishvaNarkar/Smartquiz-Agent.git
+cd smartquiz-agent
+```
+
+## 2️⃣ Install Dependencies
 
 ```bash
 python -m pip install -r requirements.txt
@@ -47,12 +54,12 @@ cd frontend
 npm install
 ```
 
-### 2) Configure environment
+## 3️⃣ Configure Environment
 
-Copy env example and set values as needed:
+Create a root `.env` file for backend settings, and use the frontend example file if you want a starter for browser settings:
 
 ```bash
-cp .env.example .env
+cp frontend/.env.example frontend/.env.local
 ```
 
 Important variables:
@@ -61,6 +68,7 @@ Important variables:
 - `OLLAMA_MODEL`
 - `SMARTQUIZ_CLOUD_API_KEY`
 - `SMARTQUIZ_AUTH_SECRET`
+- Document uploads require the parser packages listed in `requirements.txt` (`pypdf`, `python-docx`, and `python-pptx`). Legacy `.doc` files may need to be converted to `.docx` or PDF if extraction fails.
 
 Frontend optional config (`frontend/.env.local`):
 
@@ -68,22 +76,7 @@ Frontend optional config (`frontend/.env.local`):
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-### 3) Run app
-
-#### Windows
-
-```bash
-start-dev.bat
-```
-
-#### macOS/Linux
-
-```bash
-chmod +x start-dev.sh
-./start-dev.sh
-```
-
-Or run manually:
+## 4️⃣ Run App
 
 ```bash
 python api_server.py
@@ -112,6 +105,7 @@ npm run dev
 ### Quiz
 
 - `POST /quiz/custom`
+- `POST /quiz/document`
 - `POST /quiz/adaptive`
 - `POST /quiz/submit`
 - `POST /quiz/export-google-form`
@@ -130,6 +124,8 @@ npm run dev
 - `POST /settings/ai`
 - `POST /credentials/upload`
 
+The document quiz endpoint accepts multipart uploads with `username`, `difficulty`, `num_questions`, optional `topic`, and a file upload. Supported files are PDF, PPT/PPTX, DOC, and DOCX; the upload limit is 12 MB. For legacy `.doc` files, conversion to `.docx` or PDF is the safest path if text extraction is unavailable.
+
 ## 🔐 Security Model
 
 - ✅ Bearer token required on protected endpoints.
@@ -137,6 +133,7 @@ npm run dev
 - ✅ Strict username rules + legacy alias migration support.
 - ✅ Cloud API URL allowlist for supported providers.
 - ✅ Credentials upload validation (type, size, JSON shape).
+- ✅ Document quiz uploads with file type checks, size limits, and extracted-text parsing.
 - ✅ Cloud API keys not persisted in plaintext settings files.
 
 ## 📁 Repository Structure
@@ -146,15 +143,13 @@ smartquiz-agent/
 ├── api_server.py
 ├── config.py
 ├── requirements.txt
-├── start-dev.bat
-├── start-dev.sh
-├── core/
-├── services/
-├── data/
-├── tests/
-├── frontend/
+├── assets/
 ├── auth/
-└── ui/                # Legacy Streamlit interface (optional)
+├── core/
+├── data/
+├── frontend/
+├── services/
+└── tests/
 ```
 
 ## 🧪 Testing

@@ -9,6 +9,18 @@ __pycache__/
 dist/
 build/
 
+# Frontend source and build output are not needed for the backend image.
+frontend/
+
+# Documentation and repo metadata are not needed in the runtime image.
+*.md
+.github/
+CONTRIBUTING.md
+CREDENTIALS_RECOVERY.md
+README.md
+SECURITY.md
+SETUP_GUIDE.md
+
 # Virtual environments
 env/
 .venv/

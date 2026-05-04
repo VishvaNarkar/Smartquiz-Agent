@@ -47,8 +47,19 @@ class AIService:
         model: str | None = None,
         api_url: str | None = None,
         api_key: str | None = None,
+        source_text: str | None = None,
+        source_label: str | None = None,
     ):
-        return _self._generate_quiz(topic, difficulty, num_questions, model=model, api_url=api_url, api_key=api_key)
+        return _self._generate_quiz(
+            topic,
+            difficulty,
+            num_questions,
+            model=model,
+            api_url=api_url,
+            api_key=api_key,
+            source_text=source_text,
+            source_label=source_label,
+        )
 
     def _generate_quiz(
         self,
@@ -58,12 +69,23 @@ class AIService:
         model: str | None = None,
         api_url: str | None = None,
         api_key: str | None = None,
+        source_text: str | None = None,
+        source_label: str | None = None,
     ):
         if not self.check_service_health(api_url):
             raise RuntimeError("The selected AI service is unavailable. Please check the endpoint and try again.")
 
         topic = self._clean_topic(topic)
-        mcqs = generate_mcqs(topic, difficulty, num_questions, model=model, api_url=api_url, api_key=api_key)
+        mcqs = generate_mcqs(
+            topic,
+            difficulty,
+            num_questions,
+            model=model,
+            api_url=api_url,
+            api_key=api_key,
+            source_text=source_text,
+            source_label=source_label,
+        )
         mcqs = validate_mcqs(mcqs)
 
         unique_questions = {}
@@ -81,6 +103,8 @@ class AIService:
         model: str | None = None,
         api_url: str | None = None,
         api_key: str | None = None,
+        source_text: str | None = None,
+        source_label: str | None = None,
     ):
         return self.cached_generate_quiz(
             topic,
@@ -89,4 +113,6 @@ class AIService:
             model=model,
             api_url=api_url,
             api_key=api_key,
+            source_text=source_text,
+            source_label=source_label,
         )

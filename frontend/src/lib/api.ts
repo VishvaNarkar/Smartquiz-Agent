@@ -195,6 +195,8 @@ export interface QuizResponse {
   quiz: any[];
   topic: string;
   difficulty: string;
+  source_type?: string;
+  source_name?: string;
 }
 
 export const quizAPI = {
@@ -220,6 +222,30 @@ export const quizAPI = {
     const response = await apiClient.post('/quiz/adaptive', {
       username,
       num_questions: numQuestions,
+    });
+    return response.data;
+  },
+
+  generateFromDocument: async (
+    username: string,
+    file: File,
+    difficulty: string,
+    numQuestions: number = 5,
+    topic?: string
+  ): Promise<QuizResponse> => {
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('difficulty', difficulty);
+    formData.append('num_questions', String(numQuestions));
+    if (topic?.trim()) {
+      formData.append('topic', topic.trim());
+    }
+    formData.append('file', file);
+
+    const response = await apiClient.post('/quiz/document', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
     return response.data;
   },

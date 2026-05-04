@@ -47,6 +47,8 @@ If behavior changes, update relevant docs:
 - `SETUP_GUIDE.md`
 - `frontend/README.md`
 - `SECURITY.md` (if security posture changes)
+- `CREDENTIALS_RECOVERY.md` when Google Forms credentials behavior changes
+- Keep `README.md`, `SETUP_GUIDE.md`, and `frontend/README.md` aligned when the document-upload flow or supported file types change
 
 ## 🐛 Reporting Bugs
 

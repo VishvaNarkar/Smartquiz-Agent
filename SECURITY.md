@@ -40,7 +40,8 @@ Use one of these disclosure channels:
 - Ownership checks on user-scoped resources
 - Strict username validation + compatibility migration
 - Auth endpoint rate limiting
-- Credentials upload validation (type/size/schema)
+- Document quiz upload validation (type/size/parser checks)
+- Credentials upload validation (JSON extension, content type, size, schema)
 - Cloud API URL allowlist
 
 ## 📣 Scope Notes

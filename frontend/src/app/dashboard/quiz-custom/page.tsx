@@ -8,15 +8,18 @@ import { useAuthStore } from '@/store/store';
 import { useQuizStore } from '@/store/store';
 
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert'];
+const MODES = ['topic', 'document'] as const;
 
 export default function CustomQuizPage() {
   const router = useRouter();
   const { user, isLoggedIn } = useAuthStore();
   const { setQuiz } = useQuizStore();
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<(typeof MODES)[number]>('topic');
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('Medium');
   const [numQuestions, setNumQuestions] = useState(5);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn || !user) {
@@ -25,19 +28,38 @@ export default function CustomQuizPage() {
   }, [isLoggedIn, user, router]);
 
   const handleGenerateQuiz = async () => {
-    if (!user || !selectedTopic.trim()) {
+    if (!user) {
+      toast.error('Please login again');
+      return;
+    }
+
+    if (mode === 'topic' && !selectedTopic.trim()) {
       toast.error('Please enter a topic');
+      return;
+    }
+
+    if (mode === 'document' && !selectedFile) {
+      toast.error('Please choose a document to upload');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await quizAPI.generateCustom(
-        user,
-        selectedTopic,
-        selectedDifficulty,
-        numQuestions
-      );
+      const response =
+        mode === 'document'
+          ? await quizAPI.generateFromDocument(
+              user,
+              selectedFile as File,
+              selectedDifficulty,
+              numQuestions,
+              selectedTopic.trim() || undefined
+            )
+          : await quizAPI.generateCustom(
+              user,
+              selectedTopic,
+              selectedDifficulty,
+              numQuestions
+            );
       if (response.success) {
         setQuiz(response.quiz, response.topic, response.difficulty, response.quiz_id);
         toast.success('Quiz generated! Starting quiz...');
@@ -62,26 +84,83 @@ export default function CustomQuizPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 mb-1.5">Custom Quiz</h1>
         <p className="text-sm text-zinc-600">
-          Create a quiz on any topic and difficulty level
+          Create a quiz on any topic or generate one from an uploaded document
         </p>
       </div>
 
       {/* Quiz Form */}
       <div className="border border-zinc-200/70 rounded-xl p-5">
+        {/* Mode Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-zinc-700 mb-2">
+            Quiz Source
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('topic')}
+              className={`h-10 rounded-lg border transition-colors text-sm font-medium ${
+                mode === 'topic'
+                  ? 'border-zinc-900 bg-zinc-900 text-white'
+                  : 'border-zinc-200 text-zinc-700 hover:bg-zinc-100/70'
+              }`}
+            >
+              Topic
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('document')}
+              className={`h-10 rounded-lg border transition-colors text-sm font-medium ${
+                mode === 'document'
+                  ? 'border-zinc-900 bg-zinc-900 text-white'
+                  : 'border-zinc-200 text-zinc-700 hover:bg-zinc-100/70'
+              }`}
+            >
+              Document Upload
+            </button>
+          </div>
+        </div>
+
         {/* Topic Selection */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-zinc-700 mb-2">
-            Enter Topic
+            {mode === 'document' ? 'Optional Topic Focus' : 'Enter Topic'}
           </label>
           <input
             type="text"
             value={selectedTopic}
             onChange={(e) => setSelectedTopic(e.target.value)}
             className="input"
-            placeholder="Type any topic (e.g., Mathematics, AI, History)"
+            placeholder={
+              mode === 'document'
+                ? 'Optional: narrow the quiz to a subject within the document'
+                : 'Type any topic (e.g., Mathematics, AI, History)'
+            }
             maxLength={100}
           />
         </div>
+
+        {mode === 'document' && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              Upload Document
+            </label>
+            <input
+              type="file"
+              accept=".pdf,.ppt,.pptx,.doc,.docx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              className="input h-10 file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+            />
+            <p className="text-xs text-zinc-500 mt-1.5">
+              PDF, PPT/PPTX, DOCX, and most DOC files are supported. Files are processed once and not stored.
+            </p>
+            {selectedFile && (
+              <p className="text-xs text-zinc-600 mt-1.5">
+                Selected file: <span className="font-medium text-zinc-900">{selectedFile.name}</span>
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Difficulty Selection */}
         <div className="mb-6">
@@ -131,7 +210,7 @@ export default function CustomQuizPage() {
           disabled={loading}
           className="w-full h-10 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Generating Quiz...' : 'Start Custom Quiz'}
+          {loading ? 'Generating Quiz...' : mode === 'document' ? 'Start Document Quiz' : 'Start Custom Quiz'}
         </button>
       </div>
 
@@ -143,6 +222,7 @@ export default function CustomQuizPage() {
           <li>Choose difficulty from Easy to Expert.</li>
           <li>Set quiz length based on your available time.</li>
           <li>Repeat with different settings to practice progressively.</li>
+          <li>Upload a document and generate quiz questions from its content.</li>
         </ul>
       </div>
     </div>

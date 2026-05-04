@@ -1,6 +1,6 @@
 {
-  "ai_source": "openai",
-  "ai_model": "llama-3.1-8b-instant",
-  "ai_api_url": "https://api.groq.com/openai/v1/chat/completions",
+  "ai_source": "ollama",
+  "ai_model": "llama3.1:8b",
+  "ai_api_url": "http://localhost:11434/api/generate",
   "ai_api_key": ""
 }

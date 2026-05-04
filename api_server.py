@@ -17,12 +17,18 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 from services.api import SmartQuizAPI
+from services.document_processor import (
+    MAX_DOCUMENT_BYTES,
+    build_document_topic,
+    extract_document_text,
+    is_supported_document,
+)
 from services.settings_manager import SettingsManager
 from config import OLLAMA_MODEL, OLLAMA_URL
 
@@ -455,6 +461,62 @@ async def generate_custom_quiz(request: QuizGenerationRequest, current_user: str
             "quiz": mcqs,
             "topic": request.topic,
             "difficulty": request.difficulty,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/quiz/document")
+async def generate_document_quiz(
+    username: str = Form(...),
+    difficulty: str = Form(...),
+    num_questions: int = Form(5),
+    topic: Optional[str] = Form(None),
+    file: UploadFile = File(...),
+    current_user: str = Depends(get_current_user),
+):
+    """Generate a quiz from an uploaded document."""
+    try:
+        request_username = _resolve_username_with_compat(username)
+        _ensure_ownership(request_username, current_user)
+
+        filename = (file.filename or "").strip()
+        if not filename:
+            raise HTTPException(status_code=400, detail="A valid file name is required")
+
+        if not is_supported_document(filename):
+            raise HTTPException(status_code=400, detail="Please upload a PDF, PPT/PPTX, DOC, or DOCX file")
+
+        contents = await file.read(MAX_DOCUMENT_BYTES + 1)
+        if len(contents) > MAX_DOCUMENT_BYTES:
+            raise HTTPException(status_code=413, detail="Document exceeds the 12MB upload limit")
+
+        document_text = extract_document_text(filename, contents)
+        topic_name = (topic or "").strip() or build_document_topic(filename)
+
+        config = _get_runtime_ai_config()
+        mcqs, topic_name, quiz_id = api.generate_document_quiz_with_id(
+            request_username,
+            filename,
+            document_text,
+            difficulty,
+            num_questions,
+            topic=topic_name,
+            model=config["ai_model"],
+            api_url=config["ai_api_url"],
+            api_key=config["ai_api_key"],
+        )
+
+        return {
+            "success": True,
+            "quiz_id": quiz_id,
+            "quiz": mcqs,
+            "topic": topic_name,
+            "difficulty": difficulty,
+            "source_type": "document",
+            "source_name": filename,
         }
     except HTTPException:
         raise

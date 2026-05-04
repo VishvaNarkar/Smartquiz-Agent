@@ -7,6 +7,7 @@ from data.data_manager import delete_quiz, get_quiz_by_id, load_quizzes, save_qu
 from services.adaptive_engine import AdaptiveAIEngine
 from services.ai_service import AIService
 from services.form_creator import create_form
+from services.document_processor import build_document_topic
 from services.user_manager import UserManager
 
 
@@ -240,6 +241,71 @@ class SmartQuizAPI:
             api_key=api_key,
         )
         return mcqs, topic
+
+    def generate_document_quiz_with_id(
+        self,
+        username: str,
+        filename: str,
+        document_text: str,
+        difficulty: str,
+        num_questions: int,
+        topic: str | None = None,
+        model: str | None = None,
+        api_url: str | None = None,
+        api_key: str | None = None,
+    ) -> Tuple[List[Dict], str, str]:
+        username = self.resolve_username(username)
+        topic_name = (topic or "").strip() or build_document_topic(filename)
+
+        mcqs = self.ai_service.generate_quiz(
+            topic_name,
+            difficulty,
+            num_questions,
+            model=model,
+            api_url=api_url,
+            api_key=api_key,
+            source_text=document_text,
+            source_label=filename,
+        )
+        mcqs = validate_mcqs(mcqs)
+
+        quiz_data = {
+            "id": str(uuid.uuid4()),
+            "topic": topic_name,
+            "difficulty": difficulty,
+            "num_questions": len(mcqs),
+            "mcqs": mcqs,
+            "timestamp": datetime.now().isoformat(),
+            "source_type": "document",
+            "source_name": filename,
+        }
+        save_quiz(quiz_data, username)
+        return mcqs, topic_name, quiz_data["id"]
+
+    def generate_document_quiz(
+        self,
+        username: str,
+        filename: str,
+        document_text: str,
+        difficulty: str,
+        num_questions: int,
+        topic: str | None = None,
+        model: str | None = None,
+        api_url: str | None = None,
+        api_key: str | None = None,
+    ) -> Tuple[List[Dict], str]:
+        mcqs, topic_name, _quiz_id = self.generate_document_quiz_with_id(
+            username,
+            filename,
+            document_text,
+            difficulty,
+            num_questions,
+            topic=topic,
+            model=model,
+            api_url=api_url,
+            api_key=api_key,
+        )
+        return mcqs, topic_name
 
     def export_google_form(self, mcqs: List[Dict], title: str = None) -> str:
         return create_form(mcqs, title=title)

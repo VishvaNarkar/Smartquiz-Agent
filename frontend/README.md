@@ -6,10 +6,11 @@ Modern Next.js frontend for SmartQuiz Agent.
 
 - 🔐 Login/register UI connected to backend auth
 - 🧭 Dashboard and sidebar navigation
-- 🧠 Custom and adaptive quiz flows
+- 🧠 Custom and adaptive quiz flows, including quizzes generated from uploaded documents
 - ✅ Results and detailed review screens
 - 📦 Settings page for AI provider selection and credentials upload
 - 🔄 Session expiry handling with auto-redirect and friendly toast
+- 📄 Document uploads through the custom quiz page using the backend `/quiz/document` endpoint
 
 ## 🚀 Run Locally
 
@@ -34,6 +35,8 @@ Create `frontend/.env.local` if needed:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
+
+If you want a starter file, copy [frontend/.env.example](frontend/.env.example) to `frontend/.env.local`.
 
 ## 🧱 Architecture Overview
 

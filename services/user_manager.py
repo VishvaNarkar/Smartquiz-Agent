@@ -237,6 +237,9 @@ class UserManager:
         if username not in self.users:
             return
 
+        # Older data files or partial migrations can leave the history bucket missing.
+        self.quiz_history.setdefault(username, [])
+
         num_questions = len(quiz_data.get("questions", []))
         percentage = self._score_percentage(score, num_questions)
 
